@@ -1,11 +1,21 @@
-FROM gradle:7.5-alpine AS build
-COPY --chown=gradle:gradle . /home/gradle/src
-WORKDIR /home/gradle/src
-RUN gradle build --no-daemon
+FROM node:16 as builder
+# install simple http server for serving static content
+RUN npm install -g http-server
 
-FROM openjdk:17-alpine
-EXPOSE 8081
-RUN mkdir /app
-COPY --from=build /home/gradle/src/build/libs/assignment1-0.0.1-SNAPSHOT.jar /app/spring-boot-application.jar
+# make the 'app' folder the current working directory
+WORKDIR /app
 
-ENTRYPOINT ["java","-jar","/app/spring-boot-application.jar"]
+# copy both 'package.json' and 'package-lock.json' (if available)
+COPY package*.json ./
+
+# install project dependencies
+RUN npm install
+
+# copy project files and folders to the current working directory (i.e. 'app' folder)
+COPY . .
+
+# build app for production with minification
+RUN npm run build
+
+EXPOSE 8080
+CMD [ "http-server", "dist" ]
